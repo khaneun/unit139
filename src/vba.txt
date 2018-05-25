@@ -1,0 +1,16 @@
+Private Sub cb_strategy_start_Click()
+    
+    ' Main Function
+    
+    ' Login
+    
+    ' Long positions
+    
+    ' Short positions
+    
+End Sub
+
+Private Sub cb_strategy_end_Click()
+
+End Sub
+
