@@ -1,9 +1,19 @@
+
+Const HTS_SERVER_IP As String = "hts.ebestsec.co.kr"
+Const DEMO_SERVER_IP As String = "demo.ebestsec.co.kr"
+Const LOCAL_SERVER As String = "127.0.0.1"
+
+Dim WithEvents XASession_Login As XASession
+Dim numOfLogs As Long
+
 Private Sub cb_strategy_start_Click()
     
     ' Main Function
     
-    ' Login
+    cleanLog
     
+    login (HTS_SERVER_IP)
+
     ' Long positions
     
     ' Short positions
@@ -14,3 +24,37 @@ Private Sub cb_strategy_end_Click()
 
 End Sub
 
+Private Sub log(ByVal message As String)
+    'add rows based on numOfLogs
+        
+
+End Sub
+
+
+Private Sub cleanLog()
+    numOfLogs = 2
+
+End Sub
+
+Private Sub login(ByVal serverIP As String)
+
+    Set XASession_Login = CreateObject("XA_Session.XASession")
+    
+    If XASession_Login.ConnectServer(serverIP, 0) = False Then
+        MsgBox "Connection Failed"
+    End If
+    
+    loginId = Worksheets("Unit139").tb_id.Value
+    loginPassword = Worksheets("Unit139").tb_pw.Value
+    certPassword = Worksheets("Unit139").tb_cpw.Value
+    
+    If XASession_Login.login(loginId, loginPassword, certPassword, 0, False) = False Then
+        MsgBox "로그인전송실패"
+    End If
+
+End Sub
+
+Private Sub XASession_Login_Login(ByVal szCode As String, ByVal szMsg As String)
+    ' 로그인 결과
+    log (szCode & " : " & szMsg)
+End Sub
