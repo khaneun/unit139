@@ -3,22 +3,66 @@ Const HTS_SERVER_IP As String = "hts.ebestsec.co.kr"
 Const DEMO_SERVER_IP As String = "demo.ebestsec.co.kr"
 Const LOCAL_SERVER As String = "127.0.0.1"
 
+Const LOG_STARTING_ROW_INDEX As String = "2"
+Const LOG_COLUMN_INDEX As Integer = 5
+Const LOG_COLUMN_INDEX_CHAR As String = "E"
+
+
 Dim WithEvents XASession_Login As XASession
+Dim WithEvents XAQuery_CSPAT00600 As XAQuery
+
 Dim numOfLogs As Long
 
+Dim loggedIn As Boolean
+
+
 Private Sub cb_strategy_start_Click()
-    
+
     ' Main Function
     
     cleanLog
     
     login (HTS_SERVER_IP)
-
+        
+        
+    'waitTo ("login")
+    
+    
     ' Long positions
+    log ("Start long positions")
+        
+    'waitTo ("long")
+    
     
     ' Short positions
+    log ("Start short positions")
     
 End Sub
+
+Private Sub waitTo(ByVal someEvent As String)
+    Dim maxWaitTime As Date
+    maxWaitTime = Now + TimeValue("0:00:05")   ' Wait for 5 seconds
+    
+
+    Select Case someEvent
+        Case "login"
+            'TODO wait for the event
+            log ("Should be waited for login")
+                        
+            Do Until loggedIn = True Or Now > maxWaitTime
+                            
+            Loop
+            
+            
+        Case Else
+            Sleep 1000
+            
+    End Select
+    
+    
+End Sub
+
+
 
 Private Sub cb_strategy_end_Click()
 
@@ -26,17 +70,34 @@ End Sub
 
 Private Sub log(ByVal message As String)
     'add rows based on numOfLogs
-        
-
+    Cells(numOfLogs, LOG_COLUMN_INDEX).Value = message
+    numOfLogs = numOfLogs + 1
 End Sub
 
 
 Private Sub cleanLog()
+
+    Dim firstLogCell As String
+    firstLogCell = LOG_COLUMN_INDEX_CHAR & LOG_STARTING_ROW_INDEX
+    
+    Dim lastLogCell As String
+    
+    If numOfLogs = 0 Then
+        lastLogCell = LOG_COLUMN_INDEX_CHAR & 100
+    Else
+        lastLogCell = LOG_COLUMN_INDEX_CHAR & numOfLogs
+    End If
+        
+    
+    Range(firstLogCell, lastLogCell).Clear
     numOfLogs = 2
 
 End Sub
 
 Private Sub login(ByVal serverIP As String)
+
+    loggedIn = False
+    
 
     Set XASession_Login = CreateObject("XA_Session.XASession")
     
@@ -57,4 +118,92 @@ End Sub
 Private Sub XASession_Login_Login(ByVal szCode As String, ByVal szMsg As String)
     ' 로그인 결과
     log (szCode & " : " & szMsg)
+    loggedIn = True
+    
+    log ("order test")
+    'Call order("1", "18260", "1", "230000", "20143554401", "****")
+    
+End Sub
+
+
+'Module Name : Long & Short Module
+'
+'nOrderType
+'1 : Long
+'2 : Short
+'종목코드, 주문수량, 주문가격, 계좌번호, 계좌비밀번호
+Private Sub order(nOrderType, IsuNo, OrdQty, OrdPrc, AcntNo, InptPwd)
+
+    If XAQuery_CSPAT00600 Is Nothing Then
+        Set XAQuery_CSPAT00600 = CreateObject("XA_DataSet.XAQuery")
+        XAQuery_CSPAT00600.ResFileName = "\res\CSPAT00600.res"
+    End If
+    
+    '종목 코드 입력 부분
+    'IsuNo = Range("C8").Value
+    
+    '매도/매수 수량 입력 부분
+    'OrdQty = Range("C14").Value
+    'OrdPrc = Range("C11").Value
+    
+    'AcntNo = cbAcnt.Value
+    'InptPwd = tbAcntPwd.Value
+    
+    
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "AcntNo", 0, AcntNo)
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "InptPwd", 0, InptPwd)
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "IsuNo", 0, IsuNo)
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "OrdQty", 0, OrdQty)
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "OrdPrc", 0, OrdPrc)
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "BnsTpCode", 0, nOrderType)
+    
+    ' 00 : 지정가
+    ' 03 : 시장가
+    ' 05 : 조건부지정가
+    ' 06 : 최유리지정가
+    ' 07 : 최우선지정가
+    ' 61 : 장개시전시간외종가
+    ' 81 : 시간외종가
+    ' 82 : 시간외단일가
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "OrdprcPtnCode", 0, "00")
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "MgntrnCode", 0, "000")
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "LoanDt", 0, "")
+    
+    '0 : 없음
+    '1 : IOC
+    '2 : FOK
+    Call XAQuery_CSPAT00600.SetFieldData("CSPAT00600InBlock1", "OrdCndiTpCode", 0, "0")
+    
+    nSuccess = XAQuery_CSPAT00600.Request(False)
+    
+    If nSuccess < 0 Then
+        MsgBox "Error : " & nSuccess
+    End If
+    
+End Sub
+
+Private Sub XAQuery_CSPAT00600_ReceiveMessage(ByVal bIsSystemError As Boolean, ByVal nMessageCode As String, ByVal szMessage As String)
+    '주문 결과
+    log (nMessageCode & " : " & szMessage)
+End Sub
+
+Private Sub XAQuery_CSPAT00600_ReceiveData(ByVal szTrCode As String)
+
+    ' 주문 총량 같은데 가상서버에선 1 뿐임.
+    nList = XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock1", "RecCnt", 0)
+    
+    If nList > 0 Then
+        For i = 0 To nList - 1
+            '주문후 체결 정보
+            log ("주문 후 체결 정보 (" & (i + 1) & "/" & nList & ")")
+            log ("주문번호" & XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock2", "OrdNo", 0)) '주문번호
+            log ("종목번호" & XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock2", "ShtnIsuNo", 0)) '종목번호
+            log ("종목명" & XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock2", "IsuNm", 0))
+            'Range("D18").Value = XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock2", "IsuNm", 0) '종목명
+            log ("매매구분" & XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock1", "BnsTpCode", 0)) '매매구분
+            log ("주문수량" & XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock1", "OrdQty", 0)) '주문수량
+            log ("주문가격" & XAQuery_CSPAT00600.GetFieldData("CSPAT00600OutBlock1", "OrdPrc", 0)) '주문가격
+        Next
+    End If
+    
 End Sub
